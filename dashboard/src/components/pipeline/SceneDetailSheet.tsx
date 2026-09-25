@@ -11,21 +11,21 @@ import type { Scene, Character, Request, SceneReview, StatusType } from '../../t
 type SceneStage = 'image' | 'video' | 'upscale'
 
 const STATUS_COLORS: Record<StatusType, string> = {
-  COMPLETED: 'var(--green)',
-  PROCESSING: 'var(--yellow)',
-  PENDING: 'var(--muted)',
-  FAILED: 'var(--red)',
+  COMPLETED: '#10b981',
+  PROCESSING: '#f59e0b',
+  PENDING: '#64748b',
+  FAILED: '#ef4444',
 }
 
 const VERDICT_COLORS: Record<string, string> = {
-  excellent: 'var(--green)', good: 'var(--green)', acceptable: 'var(--yellow)', poor: 'var(--red)', unusable: 'var(--red)',
+  excellent: '#10b981', good: '#10b981', acceptable: '#f59e0b', poor: '#ef4444', unusable: '#ef4444',
 }
 
 const SEV_COLORS: Record<string, string> = {
-  CRITICAL: 'var(--red)', HIGH: 'var(--yellow)', MINOR: 'var(--muted)',
+  CRITICAL: '#ef4444', HIGH: '#f59e0b', MINOR: '#64748b',
 }
 
-function scoreColor(v: number) { return v >= 8 ? 'var(--green)' : v >= 6 ? 'var(--yellow)' : 'var(--red)' }
+function scoreColor(v: number) { return v >= 8 ? '#10b981' : v >= 6 ? '#f59e0b' : '#ef4444' }
 
 const STAGE_TYPES: Record<SceneStage, string[]> = {
   image: ['GENERATE_IMAGE', 'REGENERATE_IMAGE', 'EDIT_IMAGE'],
@@ -39,15 +39,15 @@ function parseCharNames(raw: string | null): string[] {
 }
 
 function stageStatus(scene: Scene, stage: SceneStage): StatusType {
-  if (stage === 'image') return scene.vertical_image_status !== 'PENDING' ? scene.vertical_image_status : scene.horizontal_image_status
-  if (stage === 'video') return scene.vertical_video_status !== 'PENDING' ? scene.vertical_video_status : scene.horizontal_video_status
-  return scene.vertical_upscale_status !== 'PENDING' ? scene.vertical_upscale_status : scene.horizontal_upscale_status
+  if (stage === 'image') return scene.horizontal_image_status !== 'PENDING' ? scene.horizontal_image_status : scene.vertical_image_status
+  if (stage === 'video') return scene.horizontal_video_status !== 'PENDING' ? scene.horizontal_video_status : scene.vertical_video_status
+  return scene.horizontal_upscale_status !== 'PENDING' ? scene.horizontal_upscale_status : scene.vertical_upscale_status
 }
 
 function stageOutputUrl(scene: Scene, stage: SceneStage): string | null {
-  if (stage === 'image') return scene.vertical_image_url || scene.horizontal_image_url
-  if (stage === 'video') return scene.vertical_video_url || scene.horizontal_video_url
-  return scene.vertical_upscale_url || scene.horizontal_upscale_url
+  if (stage === 'image') return scene.horizontal_image_url || scene.vertical_image_url
+  if (stage === 'video') return scene.horizontal_video_url || scene.vertical_video_url
+  return scene.horizontal_upscale_url || scene.vertical_upscale_url
 }
 
 function latestRequest(requests: Request[], types: string[]): Request | undefined {

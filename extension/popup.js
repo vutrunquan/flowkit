@@ -1,4 +1,13 @@
 const TYPE_LABELS = {
+  'RPC:ogiZ0b': 'TẠO ẢNH',
+  'RPC:eb1hJf': 'TẠO VIDEO',
+  'RPC:YhhmEf': 'TẠO VIDEO',
+  'RPC:nprQif': 'TẠO VIDEO',
+  'RPC:MZZa6b': 'TẠO VIDEO',
+  'RPC:maseQ': 'UPLOAD',
+  'RPC:SPrCad': 'UPSCALE',
+  'RPC:Sc7aEb': 'TẠO NV',
+
   GENERATE_IMAGE:           'GEN IMAGE',
   REGENERATE_IMAGE:         'REGEN IMAGE',
   EDIT_IMAGE:               'EDIT IMAGE',
@@ -44,13 +53,13 @@ function escHtml(str) {
 
 function badgeHtml(status) {
   if (status === 'COMPLETED' || status === 'success') {
-    return '<span class="badge badge-ok">&#10003; done</span>';
+    return '<span class="badge badge-ok">&#10003; xong</span>';
   } else if (status === 'FAILED' || status === 'failed' || (typeof status === 'number' && status >= 400)) {
-    return '<span class="badge badge-fail">&#10007; fail</span>';
+    return '<span class="badge badge-fail">&#10007; lỗi</span>';
   } else if (status === 'PROCESSING') {
-    return '<span class="badge badge-proc">&#9203; gen...</span>';
+    return '<span class="badge badge-proc">&#9203; đang chạy</span>';
   } else {
-    return '<span class="badge badge-proc">&#9203; sent</span>';
+    return '<span class="badge badge-proc">&#9203; đang chạy</span>';
   }
 }
 
@@ -136,3 +145,15 @@ chrome.runtime.sendMessage({ type: 'REQUEST_LOG' }, (data) => {
   if (chrome.runtime.lastError) return;
   if (data && data.log) renderLog(data.log);
 });
+
+// ── Auto F5 ──────────────────────────────────────────────────
+const autoF5TogglePop = document.getElementById('auto-f5-toggle-popup');
+if (autoF5TogglePop) {
+  chrome.storage.local.get(['autoF5'], (res) => {
+    autoF5TogglePop.checked = res.autoF5 !== false;
+  });
+  autoF5TogglePop.addEventListener('change', (e) => {
+    chrome.storage.local.set({ autoF5: e.target.checked });
+    chrome.runtime.sendMessage({ type: 'SET_AUTO_F5', enabled: e.target.checked });
+  });
+}

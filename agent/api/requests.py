@@ -20,6 +20,11 @@ class BatchRequestCreate(BaseModel):
     requests: list[RequestCreate]
 
 
+class CancelBatchRequest(BaseModel):
+    video_id: Optional[str] = None
+    project_id: Optional[str] = None
+
+
 class BatchStatus(BaseModel):
     total: int
     pending: int
@@ -111,6 +116,15 @@ async def list_all(scene_id: str = None, status: str = None,
 @router.get("/pending", response_model=list[Request])
 async def list_pending():
     return await crud.list_pending_requests()
+
+
+@router.post("/cancel")
+async def cancel_batch(body: Optional[CancelBatchRequest] = None):
+    """Cancel pending and in-flight requests for a video or project."""
+    vid = body.video_id if body else None
+    pid = body.project_id if body else None
+    cancelled = await crud.cancel_requests(video_id=vid, project_id=pid)
+    return {"ok": True, "cancelled": cancelled}
 
 
 @router.get("/batch-status", response_model=BatchStatus)

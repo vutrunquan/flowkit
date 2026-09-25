@@ -27,7 +27,7 @@ export default function VideoPlayer({ scenes, initialIndex, onClose }: VideoPlay
   const [index, setIndex] = useState(initialIndex)
   const scene = scenes[index]
 
-  const videoSrc = scene.vertical_upscale_url || scene.vertical_video_url || ''
+  const videoSrc = scene.horizontal_upscale_url || scene.horizontal_video_url || scene.vertical_upscale_url || scene.vertical_video_url || ''
   const charNames = parseCharacterNames(scene.character_names)
 
   useEffect(() => {

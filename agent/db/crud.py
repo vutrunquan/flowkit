@@ -316,6 +316,24 @@ async def reset_stale_processing(cutoff_minutes: int = 10) -> int:
         return cursor.rowcount
 
 
+async def cancel_requests(video_id: str = None, project_id: str = None) -> int:
+    """Cancel PENDING and PROCESSING requests."""
+    db = await get_db()
+    query = "UPDATE request SET status='FAILED', error_message='Cancelled by user' WHERE status IN ('PENDING', 'PROCESSING')"
+    params = []
+    if video_id:
+        query += " AND video_id = ?"
+        params.append(video_id)
+    elif project_id:
+        query += " AND project_id = ?"
+        params.append(project_id)
+    async with _db_lock:
+        cur = await db.execute(query, params)
+        await db.commit()
+        return cur.rowcount
+
+
+
 # ─── Material ────────────────────────────────────────────────
 
 async def create_material(id: str, name: str, style_instruction: str,

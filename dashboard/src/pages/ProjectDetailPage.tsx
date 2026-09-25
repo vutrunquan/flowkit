@@ -13,6 +13,8 @@ import { Progress } from '../components/ui/progress'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/table'
 import { Button } from '../components/ui/button'
+import { Trash2 } from 'lucide-react'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 type Tab = 'overview' | 'characters' | 'videos' | 'pipeline'
 const STAGE_KEYS: ('refs' | SceneStage)[] = ['refs', 'image', 'video', 'upscale']
@@ -43,8 +45,23 @@ export default function ProjectDetailPage({ projectId, onBack }: Props) {
   const [videos, setVideos] = useState<Video[]>([])
   const [scenesByVideo, setScenesByVideo] = useState<Record<string, Scene[]>>({})
   const [requests, setRequests] = useState<Request[]>([])
-  const [loading, setLoading] = useState(true)
   const [pipelineVideoId, setPipelineVideoId] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDeleteProject = async () => {
+    setDeleting(true)
+    try {
+      await fetchAPI(`/api/projects/${projectId}`, { method: 'DELETE' })
+      setShowDeleteModal(false)
+      onBack()
+    } catch (err: any) {
+      alert(err?.message || 'Không thể xoá dự án')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
@@ -110,7 +127,19 @@ export default function ProjectDetailPage({ projectId, onBack }: Props) {
             {t('projectDetail.header', { id: project.id, date: formatDate(project.created_at), videos: videos.length, scenes: allScenes.length })}
           </span>
         </div>
-        <Button variant="ghost" size="sm" onClick={onBack}>{t('projectDetail.back')}</Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDeleteModal(true)}
+            className="h-8 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 gap-1.5"
+            title="Xoá dự án này"
+          >
+            <Trash2 size={13} />
+            Xoá dự án
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onBack}>{t('projectDetail.back')}</Button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={v => setTab(v as Tab)}>
@@ -296,6 +325,17 @@ export default function ProjectDetailPage({ projectId, onBack }: Props) {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Confirm Delete Project Modal */}
+      <ConfirmDialog
+        open={showDeleteModal}
+        title="Xác nhận xoá dự án"
+        description={`Bạn có chắc chắn muốn xoá dự án "${project.name}"? Toàn bộ video, cảnh và hình ảnh liên quan sẽ bị xoá vĩnh viễn.`}
+        confirmLabel="Xoá vĩnh viễn"
+        loading={deleting}
+        onConfirm={handleDeleteProject}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </div>
   )
 }

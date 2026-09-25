@@ -16,6 +16,21 @@ class SceneCreate(BaseModel):
     source: Optional[SceneSource] = None
 
 
+class SceneBatchItem(BaseModel):
+    prompt: str
+    display_order: Optional[int] = None
+    image_prompt: Optional[str] = None
+    video_prompt: Optional[str] = None
+    transition_prompt: Optional[str] = None
+    character_names: Optional[list[str]] = None
+    chain_type: Optional[ChainType] = "ROOT"
+
+
+class SceneBatchCreate(BaseModel):
+    video_id: str
+    scenes: list[SceneBatchItem]
+
+
 class SceneUpdate(BaseModel):
     prompt: Optional[str] = None
     image_prompt: Optional[str] = None

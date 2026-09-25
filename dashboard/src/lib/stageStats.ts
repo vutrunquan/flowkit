@@ -20,11 +20,35 @@ export function count(statuses: StatusType[]): StageCount {
   }
 }
 
-export function sceneStageStatus(scene: Scene, stage: SceneStage): StatusType {
-  if (stage === 'image') return scene.vertical_image_status !== 'PENDING' ? scene.vertical_image_status : scene.horizontal_image_status
-  if (stage === 'video') return scene.vertical_video_status !== 'PENDING' ? scene.vertical_video_status : scene.horizontal_video_status
-  return scene.vertical_upscale_status !== 'PENDING' ? scene.vertical_upscale_status : scene.horizontal_upscale_status
+export function sceneStageStatus(scene: Scene, stage: SceneStage, orientation?: string): StatusType {
+  const isHoriz = orientation === 'HORIZONTAL' || (scene.horizontal_image_status === 'COMPLETED' && scene.vertical_image_status !== 'COMPLETED')
+  if (stage === 'image') {
+    if (orientation === 'HORIZONTAL') return scene.horizontal_image_status
+    if (orientation === 'VERTICAL') return scene.vertical_image_status
+    return isHoriz ? scene.horizontal_image_status : (scene.vertical_image_status !== 'PENDING' ? scene.vertical_image_status : scene.horizontal_image_status)
+  }
+  if (stage === 'video') {
+    if (orientation === 'HORIZONTAL') return scene.horizontal_video_status
+    if (orientation === 'VERTICAL') return scene.vertical_video_status
+    return isHoriz ? scene.horizontal_video_status : (scene.vertical_video_status !== 'PENDING' ? scene.vertical_video_status : scene.horizontal_video_status)
+  }
+  if (orientation === 'HORIZONTAL') return scene.horizontal_upscale_status
+  if (orientation === 'VERTICAL') return scene.vertical_upscale_status
+  return isHoriz ? scene.horizontal_upscale_status : (scene.vertical_upscale_status !== 'PENDING' ? scene.vertical_upscale_status : scene.horizontal_upscale_status)
 }
+
+export function getSceneImageUrl(scene: Scene, orientation?: string): string | null {
+  if (orientation === 'HORIZONTAL') return scene.horizontal_image_url || scene.vertical_image_url
+  if (orientation === 'VERTICAL') return scene.vertical_image_url || scene.horizontal_image_url
+  return scene.horizontal_image_url || scene.vertical_image_url
+}
+
+export function getSceneVideoUrl(scene: Scene, orientation?: string): string | null {
+  if (orientation === 'HORIZONTAL') return scene.horizontal_video_url || scene.vertical_video_url
+  if (orientation === 'VERTICAL') return scene.vertical_video_url || scene.horizontal_video_url
+  return scene.horizontal_video_url || scene.vertical_video_url
+}
+
 
 export function charStatus(c: Character, requests: Request[]): StatusType {
   if (c.media_id) return 'COMPLETED'

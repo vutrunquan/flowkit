@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from agent.models.scene import Scene, SceneCreate, SceneUpdate
+from agent.models.scene import Scene, SceneCreate, SceneBatchCreate, SceneUpdate
 from agent.sdk.persistence.sqlite_repository import SQLiteRepository
 import json
 
@@ -58,6 +58,53 @@ async def create(body: SceneCreate):
 
     sdk_scene = await _repo.create_scene(**data)
     return _scene_to_flat(sdk_scene)
+
+
+@router.post("/batch", response_model=list[Scene])
+async def create_batch(body: SceneBatchCreate):
+    """Batch-create multiple scenes into a video at once."""
+    video = await _repo.get_video(body.video_id)
+    if not video:
+        raise HTTPException(404, "Video not found")
+
+    # Fetch project material prefix if applicable
+    prefix = None
+    from agent.db.crud import get_project
+    project_row = await get_project(video.project_id)
+    if project_row and project_row.get("material"):
+        from agent.materials import get_material
+        mat = get_material(project_row["material"])
+        if mat and mat.get("scene_prefix"):
+            prefix = mat["scene_prefix"]
+
+    # Calculate starting display_order
+    existing = await _repo.list_scenes(body.video_id)
+    current_max_order = max([s.display_order for s in existing], default=-1)
+    next_order = current_max_order + 1
+
+    created = []
+    for i, item in enumerate(body.scenes):
+        prompt = item.prompt.strip()
+        if not prompt:
+            continue
+        if prefix and not prompt.startswith(prefix):
+            prompt = f"{prefix} {prompt}"
+
+        order = item.display_order if item.display_order is not None else (next_order + i)
+        sdk_scene = await _repo.create_scene(
+            video_id=body.video_id,
+            display_order=order,
+            prompt=prompt,
+            image_prompt=item.image_prompt,
+            video_prompt=item.video_prompt,
+            transition_prompt=item.transition_prompt,
+            character_names=item.character_names,
+            chain_type=item.chain_type or "ROOT",
+            source="user",
+        )
+        created.append(_scene_to_flat(sdk_scene))
+
+    return created
 
 
 @router.get("", response_model=list[Scene])

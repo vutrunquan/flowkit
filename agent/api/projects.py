@@ -259,10 +259,54 @@ async def update(pid: str, body: ProjectUpdate):
 
 @router.delete("/{pid}")
 async def delete(pid: str):
-    repo = _get_repo()
-    if not await repo.delete_project(pid):
+    """Delete a project and all associated videos, scenes, requests, and character links."""
+    from agent.db.schema import get_db, _db_lock
+    from agent.api.active_project import _read_state, _clear_state
+
+    db = await get_db()
+    async with _db_lock:
+        await db.execute("DELETE FROM request WHERE project_id = ?", (pid,))
+        await db.execute(
+            "DELETE FROM scene WHERE video_id IN (SELECT id FROM video WHERE project_id = ?)",
+            (pid,)
+        )
+        await db.execute("DELETE FROM video WHERE project_id = ?", (pid,))
+        await db.execute("DELETE FROM project_character WHERE project_id = ?", (pid,))
+        cur = await db.execute("DELETE FROM project WHERE id = ?", (pid,))
+        await db.commit()
+
+    if cur.rowcount == 0:
         raise HTTPException(404, "Project not found")
-    return {"ok": True}
+
+    state = _read_state()
+    if state and state.get("project_id") == pid:
+        _clear_state()
+
+    logger.info("Project %s deleted successfully with all child resources", pid)
+    return {"ok": True, "deleted_id": pid}
+
+
+@router.delete("")
+async def delete_all(all: bool = False):
+    """Delete all projects and all associated resources."""
+    if not all:
+        raise HTTPException(400, "Must provide query param ?all=true to delete all projects")
+
+    from agent.db.schema import get_db, _db_lock
+    from agent.api.active_project import _clear_state
+
+    db = await get_db()
+    async with _db_lock:
+        await db.execute("DELETE FROM request")
+        await db.execute("DELETE FROM scene")
+        await db.execute("DELETE FROM video")
+        await db.execute("DELETE FROM project_character")
+        cur = await db.execute("DELETE FROM project")
+        await db.commit()
+
+    _clear_state()
+    logger.info("All projects deleted (%d projects removed)", cur.rowcount)
+    return {"ok": True, "deleted_count": cur.rowcount}
 
 
 @router.post("/{pid}/characters/{cid}")

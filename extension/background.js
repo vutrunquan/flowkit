@@ -317,6 +317,10 @@ function sendToAgent(msg) {
 // ─── reCAPTCHA Solving ──────────────────────────────────────
 
 async function requestCaptchaFromTab(tabId, requestId, pageAction) {
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (tab?.url && (tab.url.includes('accounts.google.com') || tab.url.includes('signin') || tab.url.includes('ServiceLogin'))) {
+    return { error: 'NOT_LOGGED_IN: Tab bị chuyển hướng sang trang đăng nhập Google. Vui lòng đăng nhập Google Flow trong cửa sổ Chrome này.' };
+  }
   try {
     return await chrome.tabs.sendMessage(tabId, {
       type: 'GET_CAPTCHA',
@@ -329,6 +333,12 @@ async function requestCaptchaFromTab(tabId, requestId, pageAction) {
       msg.includes('Receiving end does not exist') ||
       msg.includes('Could not establish connection');
     if (!shouldInject) throw error;
+
+    // Check again before injecting to prevent host permission errors on login/blank pages
+    const freshTab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!freshTab?.url || !freshTab.url.includes('flow.google.com')) {
+      return { error: 'NO_FLOW_TAB' };
+    }
 
     // Inject content script and retry
     await chrome.scripting.executeScript({
@@ -368,6 +378,12 @@ function captchaFromTab(tabId, requestId, captchaAction) {
 
 async function solveCaptcha(requestId, captchaAction) {
   let tabs = await chrome.tabs.query({ url: flowUrls });
+  tabs.sort((a, b) => {
+    if (a.active && !b.active) return -1;
+    if (!a.active && b.active) return 1;
+    if (a.lastAccessed && b.lastAccessed) return b.lastAccessed - a.lastAccessed;
+    return (b.id || 0) - (a.id || 0);
+  });
 
   // No Flow tab at all — spawn one and let it settle. Keep the exact tab id:
   // a redirected or stale tab must not make us select some older candidate.
@@ -402,11 +418,15 @@ async function solveCaptcha(requestId, captchaAction) {
       const msg = e?.message || '';
       errors.push(msg);
       // Tab evaporated mid-call (window closed, discarded again, navigated
-      // away). Move on to the next candidate rather than failing the job.
+      // away, or host permission mismatch on stale tab). Move on to the next
+      // candidate rather than failing the job.
       if (
         msg.includes('No current window') ||
         msg.includes('No tab with id') ||
-        msg.includes('Receiving end does not exist')
+        msg.includes('Receiving end does not exist') ||
+        msg.includes('Cannot access contents') ||
+        msg.includes('must request permission') ||
+        msg.includes('Extension manifest')
       ) {
         continue;
       }
@@ -424,6 +444,9 @@ async function solveCaptcha(requestId, captchaAction) {
     await sleep(3000);
     const target = await chrome.tabs.get(recoveryTab.id);
     if (!target || target.discarded) return { error: 'NO_FLOW_TAB' };
+    if (target.url && (target.url.includes('accounts.google.com') || target.url.includes('signin') || target.url.includes('ServiceLogin'))) {
+      return { error: 'NOT_LOGGED_IN: Cửa sổ Chrome này chưa đăng nhập Google Flow (tab bị chuyển hướng sang trang đăng nhập). Vui lòng mở https://flow.google.com và đăng nhập trong chính cửa sổ Chrome này.' };
+    }
     return await captchaFromTab(target.id, requestId, captchaAction);
   } catch (e) {
     return { error: e?.message || errors[0] || 'NO_FLOW_TAB' };
@@ -495,8 +518,8 @@ async function runBatchRpc(cmd) {
   const [injected] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     world: 'MAIN',
-    args: [cmd.rpcid, freq, MAX_RPC_TEXT, cmd.match || null],
-    func: async (rpcid, freqStr, maxText, match) => {
+    args: [cmd.rpcid, freq, MAX_RPC_TEXT, cmd.match || null, cmd.projectId || null],
+    func: async (rpcid, freqStr, maxText, match, projectId) => {
       const wiz = globalThis.WIZ_global_data || {};
       const at = wiz.SNlM0e;
       const sid = wiz.FdrFJe;
@@ -505,7 +528,7 @@ async function runBatchRpc(cmd) {
       const reqid = Math.floor(Math.random() * 900000) + 100000;
       // Match Flow's own WIZ metadata. GEM_PIX_2 (Nano Banana Pro) rejects
       // image generation when source-path is missing even though Lite may not.
-      const sourcePath = location.pathname || '/';
+      const sourcePath = projectId ? `/project/${projectId}/character` : (location.pathname || '/');
       const hl = (document.documentElement.lang || navigator.language || 'en').split('-')[0];
       const url =
         `/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=${encodeURIComponent(rpcid)}` +
@@ -530,7 +553,7 @@ async function runBatchRpc(cmd) {
         return {
           status: resp.status,
           matched: found !== -1,
-          text: found === -1 ? '' : text.slice(found, found + 800),
+          text: found === -1 ? '' : text.slice(found, found + 8192),
         };
       }
       return { status: resp.status, text: text.slice(0, maxText) };
@@ -542,7 +565,7 @@ async function runBatchRpc(cmd) {
 
 async function handleBatchRpc(msg) {
   const { id, params } = msg;
-  const { rpcid, freq, captchaAction, match } = params || {};
+  const { rpcid, freq, captchaAction, match, projectId } = params || {};
   if (!rpcid || !freq) {
     sendToAgent({ id, status: 400, error: 'INVALID_BATCH_RPC' });
     return;
@@ -553,7 +576,7 @@ async function handleBatchRpc(msg) {
   if (hasCaptcha) metrics.requestCount++;
   // Polls and listing lookups run constantly; only the generates are worth
   // a row in the log the popup shows.
-  const visible = hasCaptcha;
+  const visible = hasCaptcha || rpcid === 'Sc7aEb'; // Force log for add character
   if (visible) {
     addRequestLog({
       id, type: `RPC:${rpcid}`, time: new Date().toISOString(),
@@ -563,7 +586,7 @@ async function handleBatchRpc(msg) {
   }
 
   try {
-    const out = await runBatchRpc({ id, rpcid, freq, captchaAction, match });
+    const out = await runBatchRpc({ id, rpcid, freq, captchaAction, match, projectId });
     if (out.error) {
       if (hasCaptcha) { metrics.failedCount++; metrics.lastError = out.error; }
       if (visible) updateRequestLog(id, { status: 'failed', error: out.error });
@@ -1004,3 +1027,20 @@ setInterval(() => { _telemetrySessionId = `;${Date.now()}`; }, _rand(25, 35) * 6
 scheduleTelemetry();
 
 console.log('[FlowAgent] Extension loaded');
+
+let autoF5Interval = null;
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'SET_AUTO_F5') {
+    if (autoF5Interval) clearInterval(autoF5Interval);
+    if (msg.enabled) {
+      autoF5Interval = setInterval(() => {
+        chrome.tabs.query({ url: flowUrls }, (tabs) => {
+          if (tabs && tabs.length > 0) {
+            chrome.tabs.reload(tabs[0].id);
+          }
+        });
+      }, 60 * 60 * 1000);
+    }
+    if (sendResponse) sendResponse({ ok: true });
+  }
+});

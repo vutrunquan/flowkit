@@ -6,6 +6,15 @@
 // ── Type label map ───────────────────────────────────────────
 
 const TYPE_LABELS = {
+  'RPC:ogiZ0b': 'TẠO ẢNH',
+  'RPC:eb1hJf': 'TẠO VIDEO',
+  'RPC:YhhmEf': 'TẠO VIDEO',
+  'RPC:nprQif': 'TẠO VIDEO',
+  'RPC:MZZa6b': 'TẠO VIDEO',
+  'RPC:maseQ': 'UPLOAD',
+  'RPC:SPrCad': 'UPSCALE',
+  'RPC:Sc7aEb': 'TẠO NV',
+
   // Worker request types
   GENERATE_IMAGE:           'GEN IMAGE',
   REGENERATE_IMAGE:         'REGEN IMAGE',
@@ -38,7 +47,7 @@ const TYPE_LABELS = {
 
 function formatType(type) {
   if (!type) return '—';
-  return TYPE_LABELS[type] || type.slice(0, 5).toUpperCase();
+  return TYPE_LABELS[type] || (type.startsWith('RPC:') ? type.slice(0, 10) : type.slice(0, 5).toUpperCase());
 }
 
 // ── Time formatting ──────────────────────────────────────────
@@ -132,15 +141,15 @@ function updateRequestLog(entries) {
 
     let badgeHtml;
     if (status === 'COMPLETED' || status === 'success') {
-      badgeHtml = '<span class="badge badge-ok">&#10003; done</span>';
+      badgeHtml = '<span class="badge badge-ok">&#10003; xong</span>';
     } else if (status === 'FAILED' || status === 'failed' || (typeof status === 'number' && status >= 400)) {
-      badgeHtml = '<span class="badge badge-fail">&#10007; fail</span>';
+      badgeHtml = '<span class="badge badge-fail">&#10007; lỗi</span>';
     } else if (status === 'PROCESSING') {
-      badgeHtml = '<span class="badge badge-proc">&#9203; gen...</span>';
+      badgeHtml = '<span class="badge badge-proc">&#9203; đang chạy</span>';
     } else if (status === 200 || status === 'processing') {
-      badgeHtml = '<span class="badge badge-proc">&#9203; sent</span>';
+      badgeHtml = '<span class="badge badge-proc">&#9203; đang chạy</span>';
     } else {
-      badgeHtml = '<span class="badge badge-proc">&#9203; sent</span>';
+      badgeHtml = '<span class="badge badge-proc">&#9203; đang chạy</span>';
     }
 
     const errorDisplay = error
@@ -291,3 +300,16 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchStatus();
   fetchLog();
 });
+
+// ── Auto F5 ──────────────────────────────────────────────────
+const autoF5Toggle = document.getElementById('auto-f5-toggle');
+if (autoF5Toggle) {
+  chrome.storage.local.get(['autoF5'], (res) => {
+    autoF5Toggle.checked = res.autoF5 !== false;
+    chrome.runtime.sendMessage({ type: 'SET_AUTO_F5', enabled: autoF5Toggle.checked });
+  });
+  autoF5Toggle.addEventListener('change', (e) => {
+    chrome.storage.local.set({ autoF5: e.target.checked });
+    chrome.runtime.sendMessage({ type: 'SET_AUTO_F5', enabled: e.target.checked });
+  });
+}

@@ -91,10 +91,10 @@ export default function DashboardPage() {
   const failed24h = requests.filter(r => r.status === 'FAILED' && new Date().getTime() - new Date(r.updated_at).getTime() <= 24 * 3600 * 1000).length
 
   const kpis: { id: string; labelKey: TranslationKey; value: number; color: string; note: string }[] = [
-    { id: 'scenesInFlight', labelKey: 'dashboard.kpi.scenesInFlight', value: scenesInFlight, color: 'var(--yellow)', note: t('dashboard.kpi.note.scenesInFlight', { n: allVideos.length }) },
-    { id: 'completedToday', labelKey: 'dashboard.kpi.completedToday', value: completedToday, color: 'var(--green)', note: t('dashboard.kpi.note.completedToday', { n: requests.length }) },
-    { id: 'failed24h', labelKey: 'dashboard.kpi.failed24h', value: failed24h, color: 'var(--red)', note: t('dashboard.kpi.note.failed24h', { n: requests.filter(r => r.status === 'FAILED').length }) },
-    { id: 'activeProjects', labelKey: 'dashboard.kpi.activeProjects', value: projects.length, color: 'var(--text)', note: t('dashboard.kpi.note.activeProjects', { n: allVideos.length }) },
+    { id: 'scenesInFlight', labelKey: 'dashboard.kpi.scenesInFlight', value: scenesInFlight, color: '#f59e0b', note: t('dashboard.kpi.note.scenesInFlight', { n: allVideos.length }) },
+    { id: 'completedToday', labelKey: 'dashboard.kpi.completedToday', value: completedToday, color: '#10b981', note: t('dashboard.kpi.note.completedToday', { n: requests.length }) },
+    { id: 'failed24h', labelKey: 'dashboard.kpi.failed24h', value: failed24h, color: '#ef4444', note: t('dashboard.kpi.note.failed24h', { n: requests.filter(r => r.status === 'FAILED').length }) },
+    { id: 'activeProjects', labelKey: 'dashboard.kpi.activeProjects', value: projects.length, color: '#2563eb', note: t('dashboard.kpi.note.activeProjects', { n: allVideos.length }) },
   ]
 
   const throughputRows = allVideos.map(v => {
