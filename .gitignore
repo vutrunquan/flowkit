@@ -27,3 +27,4 @@ extension/_metadata/
 .omc/
 .agent/
 flow_session_project.json
+.venv/
