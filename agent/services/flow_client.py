@@ -149,19 +149,25 @@ class FlowClient:
                 if require_token
                 else session.get("connected_at")
             )
+            raw_v = str(session.get("extension_version") or "0.0.0")
+            try:
+                v_tuple = tuple(int(x) for x in raw_v.split(".") if x.isdigit())
+            except Exception:
+                v_tuple = (0, 0, 0)
+            is_version_ok = v_tuple >= (0, 5, 3)
             candidates.append({
                 "ws": ws,
-                "available": session.get("unavailable_until", 0) <= now,
+                "available": is_version_ok and (session.get("unavailable_until", 0) <= now),
+                "version": v_tuple,
                 "active": ws is self._extension_ws,
                 "recency": recency or 0,
             })
 
-        # Prefer an available active session, then the most recently
-        # authenticated alternatives. Temporarily unavailable sessions remain
-        # last-resort candidates so a single-profile setup can still recover.
+        # Prefer an available session with the highest extension version, then active, then recency
         candidates.sort(
             key=lambda item: (
                 item["available"],
+                item["version"],
                 item["active"] and item["available"],
                 item["recency"],
             ),
@@ -181,6 +187,8 @@ class FlowClient:
         return any(marker in message for marker in (
             "no_flow_key",
             "no_flow_tab",
+            "no_matching_project_tab",
+            "no_matching_project_tab_in_profile",
             # Batch path: this profile's Flow tab cannot sign a request — it is
             # signed out, still booting, or Chrome discarded it. Another
             # profile's tab may be perfectly able to.
@@ -190,6 +198,9 @@ class FlowClient:
             "extension not connected",
             "extension disconnected",
             "extension_switched",
+            "captcha_failed",
+            "invalid site key",
+            "no_injection_result",
             "public_error_per_model_daily_quota_reached",
             "public_error_user_quota_reached",
         ))
@@ -270,6 +281,13 @@ class FlowClient:
                 version or "unknown",
                 "yes" if flow_supported is True else "no" if flow_supported is False else "unknown",
             )
+            try:
+                v_parts = tuple(int(x) for x in str(version or "0").split(".") if x.isdigit())
+                if v_parts < (0, 5, 4) and source_ws is not None:
+                    logger.info("Requesting extension reload from %s to 0.5.4", version)
+                    asyncio.create_task(source_ws.send(json.dumps({"method": "reload_extension"})))
+            except Exception as exc:
+                logger.debug("Failed to send reload_extension: %s", exc)
             asyncio.create_task(self._sync_tier())
             return
 

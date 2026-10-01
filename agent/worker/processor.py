@@ -530,6 +530,12 @@ async def _handle_failure(rid: str, req: dict, result: dict, retry_after: dict =
         logger.info("Request %s transient WS error, will retry (no retry increment): %s", rid[:8], error_msg)
         return
 
+    # Profile / tab mismatch transient errors: retry without burning MAX_RETRIES
+    if "no_matching_project_tab" in error_lower:
+        await crud.update_request(rid, status="PENDING", error_message=str(error_msg))
+        logger.warning("Request %s tab/profile mismatch error, will retry: %s", rid[:8], error_msg)
+        return
+
     # reCAPTCHA errors: retry up to 10 times — deferred dict in main loop handles delay
     if "captcha" in error_lower or "recaptcha" in error_lower:
         retry = req.get("retry_count", 0) + 1

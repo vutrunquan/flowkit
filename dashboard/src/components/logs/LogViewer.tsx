@@ -102,29 +102,35 @@ export default function LogViewer() {
 
       <Card className="py-0 flex-1 min-h-0 overflow-hidden">
         <div
-          className="grid gap-3.5 px-4 py-2.5 text-[9px] tracking-widest"
-          style={{ gridTemplateColumns: '150px 200px 90px 140px 1fr', borderBottom: '1px solid var(--border)', color: 'var(--muted)' }}
+          className="grid gap-3.5 px-4 py-2.5 text-[10px] tracking-wider font-semibold uppercase select-none"
+          style={{ gridTemplateColumns: '150px 200px 90px 140px 1fr', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}
         >
           <span>{t('logs.table.time')}</span><span>{t('logs.table.type')}</span><span>{t('logs.table.status')}</span><span>{t('logs.table.target')}</span><span>{t('logs.table.detail')}</span>
         </div>
         <ScrollArea className="h-full">
           <CardContent className="py-0">
             {filtered.length === 0 ? (
-              <div className="py-10 text-center text-xs" style={{ color: 'var(--muted)' }}>{t('logs.empty')}</div>
+              <div className="py-10 text-center text-xs" style={{ color: 'var(--text-muted)' }}>{t('logs.empty')}</div>
             ) : (
               filtered.map(row => {
                 const req = requests.find(r => r.id === row.id)
                 return (
                   <div
                     key={row.id}
-                    className="grid gap-3.5 py-2 text-[11px]"
+                    className="grid gap-3.5 py-2 text-[11px] items-center hover:bg-slate-50 transition-colors"
                     style={{ gridTemplateColumns: '150px 200px 90px 140px 1fr', borderBottom: '1px solid var(--border)' }}
                   >
-                    <span style={{ color: 'var(--muted)' }}>{new Date(row.time).toLocaleString()}</span>
-                    <span style={{ color: 'var(--accent)' }}>{row.type}</span>
-                    <span style={{ color: row.severity === 'error' ? 'var(--red)' : row.status === 'PROCESSING' ? 'var(--yellow)' : 'var(--green)' }}>{statusLabel(t, row.status)}</span>
-                    <span style={{ color: 'var(--muted)' }}>{row.target}</span>
-                    <span style={{ color: 'var(--muted)' }}>{req?.error_message ?? (req?.retry_count ? t('logs.detailRetry', { n: req.retry_count }) : '')}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{new Date(row.time).toLocaleString()}</span>
+                    <span className="font-mono font-medium" style={{ color: 'var(--accent)' }}>{row.type}</span>
+                    <span className="font-semibold" style={{ color: row.severity === 'error' ? 'var(--red)' : row.status === 'PROCESSING' ? 'var(--yellow)' : 'var(--green)' }}>{statusLabel(t, row.status)}</span>
+                    <span className="font-medium" style={{ color: 'var(--text)' }}>{row.target}</span>
+                    <span
+                      className="font-mono text-[11px] truncate"
+                      style={{ color: row.severity === 'error' ? 'var(--red)' : 'var(--text)' }}
+                      title={req?.error_message ?? ''}
+                    >
+                      {req?.error_message ?? (req?.retry_count ? t('logs.detailRetry', { n: req.retry_count }) : '')}
+                    </span>
                   </div>
                 )
               })
@@ -133,7 +139,7 @@ export default function LogViewer() {
         </ScrollArea>
       </Card>
 
-      <div className="flex items-center gap-3.5 text-[10px]" style={{ color: 'var(--muted)' }}>
+      <div className="flex items-center gap-3.5 text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
         <span>{t('logs.footerCount', { n: filtered.length, m: rows.length })}</span>
         <span>· {paused ? t('logs.tailPaused') : t('logs.live')}</span>
       </div>

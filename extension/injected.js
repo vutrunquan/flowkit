@@ -48,9 +48,15 @@ window.fetch = async function (...args) {
 let captchaMintTail = Promise.resolve();
 
 // ─── Site key resolution ────────────────────────────────────
+// Ensure SITE_KEY is registered in reCAPTCHA configuration
+try {
+  const cfg = window.___grecaptcha_cfg = window.___grecaptcha_cfg || {};
+  const r = cfg.render = cfg.render || [];
+  if (!r.includes(SITE_KEY)) r.push(SITE_KEY);
+} catch (e) {}
+
 // Prefer the site key the page is currently configured with; the constant is
 // only a fallback for a page that has not configured one yet.
-
 function resolveSitekey() {
   try {
     const cfg = window.___grecaptcha_cfg || {};

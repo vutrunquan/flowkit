@@ -245,6 +245,8 @@ function connectToAgent() {
         await handleApiRequest(msg);
       } else if (msg.method === 'trpc_request') {
         await handleTrpcRequest(msg);
+      } else if (msg.method === 'reload_extension') {
+        chrome.runtime.reload();
       } else if (msg.method === 'solve_captcha') {
         await handleSolveCaptcha(msg);
       } else if (msg.method === 'get_status') {
@@ -488,7 +490,18 @@ const CAPTCHA_SLOT = '__CAPTCHA__';
 const MAX_RPC_TEXT = 32000000; // the project listing alone is past 17 MB
 
 async function runBatchRpc(cmd) {
+  const targetProjectId = cmd.projectId || (cmd.freq && cmd.freq.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]);
   const tabs = await chrome.tabs.query({ url: flowUrls });
+  tabs.sort((a, b) => {
+    const aMatch = targetProjectId && a.url?.includes(targetProjectId) ? 2 : (a.url?.includes('/project/') ? 1 : 0);
+    const bMatch = targetProjectId && b.url?.includes(targetProjectId) ? 2 : (b.url?.includes('/project/') ? 1 : 0);
+    if (aMatch !== bMatch) return bMatch - aMatch;
+    if (!a.discarded && b.discarded) return -1;
+    if (a.discarded && !b.discarded) return 1;
+    if (a.active && !b.active) return -1;
+    if (!a.active && b.active) return 1;
+    return (b.lastAccessed || 0) - (a.lastAccessed || 0);
+  });
   let candidate = tabs.find((t) => !t.discarded) || tabs[0];
   if (!candidate) {
     // No Flow tab — open one and give the app a moment to boot, otherwise
@@ -518,7 +531,7 @@ async function runBatchRpc(cmd) {
   const [injected] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     world: 'MAIN',
-    args: [cmd.rpcid, freq, MAX_RPC_TEXT, cmd.match || null, cmd.projectId || null],
+    args: [cmd.rpcid, freq, MAX_RPC_TEXT, cmd.match || null, targetProjectId || null],
     func: async (rpcid, freqStr, maxText, match, projectId) => {
       const wiz = globalThis.WIZ_global_data || {};
       const at = wiz.SNlM0e;
@@ -528,7 +541,10 @@ async function runBatchRpc(cmd) {
       const reqid = Math.floor(Math.random() * 900000) + 100000;
       // Match Flow's own WIZ metadata. GEM_PIX_2 (Nano Banana Pro) rejects
       // image generation when source-path is missing even though Lite may not.
-      const sourcePath = projectId ? `/project/${projectId}/character` : (location.pathname || '/');
+      const currentPath = location.pathname || '/';
+      const sourcePath = (projectId && (currentPath === '/' || !currentPath.includes('/project/')))
+        ? `/project/${projectId}/character`
+        : currentPath;
       const hl = (document.documentElement.lang || navigator.language || 'en').split('-')[0];
       const url =
         `/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=${encodeURIComponent(rpcid)}` +
