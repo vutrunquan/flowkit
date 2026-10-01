@@ -1,0 +1,49 @@
+{
+  "name": "flowkit-desktop",
+  "productName": "Flow Kit Desktop",
+  "version": "1.0.0",
+  "description": "Flow Kit â€” AI Video Production Studio Desktop App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "dist:portable": "electron-builder --win portable",
+    "dist:installer": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.flowkit.desktop",
+    "productName": "Flow Kit",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "../docs/images/flowkit_banner.svg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "package.json"
+    ]
+  },
+  "keywords": [
+    "flowkit",
+    "ai-video",
+    "google-flow"
+  ],
+  "author": "FlowKit Team",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}

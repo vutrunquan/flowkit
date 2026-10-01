@@ -131,10 +131,14 @@ def _resolve_media_local(url: str, tmpdir: Path) -> Optional[str]:
     """Resolve a media URL to a local file path (downloading http(s) when needed)."""
     if not url:
         return None
-    parsed = urlparse(url)
-    if parsed.scheme == "file":
-        p = Path(parsed.path)
+    from urllib.parse import unquote
+    if url.startswith("file://"):
+        raw = url[7:]
+        if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
+            raw = raw[1:]
+        p = Path(unquote(raw))
         return str(p) if p.is_file() else None
+    parsed = urlparse(url)
     if parsed.scheme in ("http", "https"):
         dest = tmpdir / f"dl_{abs(hash(url)) % 10**8}{Path(parsed.path).suffix or '.mp4'}"
         try:

@@ -176,7 +176,7 @@ class Muse2APIProvider(MediaProvider):
             path.write_bytes(data)
 
         await asyncio.to_thread(_write)
-        return "file://" + str(path.resolve())
+        return "file://" + str(path.resolve()).replace("\\", "/")
 
     async def register_existing_image(
         self, url: str, *, name: str = "", project_id: str = ""
@@ -186,10 +186,16 @@ class Muse2APIProvider(MediaProvider):
         if parsed.scheme in ("http", "https"):
             canonical = url
         else:
-            local = Path(unquote(parsed.path)) if parsed.scheme == "file" else Path(url)
+            if url and url.startswith("file://"):
+                raw = url[7:]
+                if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
+                    raw = raw[1:]
+                local = Path(unquote(raw))
+            else:
+                local = Path(unquote(parsed.path)) if parsed.scheme == "file" else Path(url)
             if not local.is_file():
                 return {"error": f"muse2api: local image not found for '{name}': {url}"}
-            canonical = "file://" + str(local.resolve())
+            canonical = "file://" + str(local.resolve()).replace("\\", "/")
         mid = str(uuid.uuid4())
         logger.info("muse2api: registered existing image '%s' → media_id=%s", name, mid[:8])
         return {"data": {"media": [{"name": mid}], "url": canonical}}

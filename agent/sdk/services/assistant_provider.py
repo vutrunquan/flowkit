@@ -92,8 +92,15 @@ def _video_result(mid: str, url: str) -> dict:
 
 def _audio_result(url: str) -> dict:
     """TTS result: the finished audio URL plus a local path when file://."""
-    parsed = urlparse(url or "")
-    local_path = str(Path(parsed.path).resolve()) if parsed.scheme == "file" else ""
+    from urllib.parse import unquote
+    if url and url.startswith("file://"):
+        raw = url[7:]
+        if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
+            raw = raw[1:]
+        local_path = str(Path(unquote(raw)).resolve())
+    else:
+        parsed = urlparse(url or "")
+        local_path = str(Path(parsed.path).resolve()) if parsed.scheme == "file" else ""
     return {"data": {"url": url, "audio_path": local_path or url}}
 
 
@@ -204,12 +211,19 @@ class AssistantProvider(MediaProvider):
         self, url: str, *, name: str = "", project_id: str = ""
     ) -> dict:
         """Mint a UUID media_id for an already-existing local image."""
-        parsed = urlparse(url)
-        local = Path(parsed.path) if parsed.scheme == "file" else Path(url)
+        from urllib.parse import unquote
+        if url and url.startswith("file://"):
+            raw = url[7:]
+            if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
+                raw = raw[1:]
+            local = Path(unquote(raw))
+        else:
+            parsed = urlparse(url)
+            local = Path(parsed.path) if parsed.scheme == "file" else Path(url)
         if not local.is_file():
             return {"error": f"AssistantProvider: local image not found for '{name}': {url}"}
         mid = str(uuid.uuid4())
-        canonical = "file://" + str(local.resolve())
+        canonical = "file://" + str(local.resolve()).replace("\\", "/")
         logger.info("AssistantProvider: registered existing image '%s' → media_id=%s",
                     name, mid[:8])
         return {"data": {"media": [{"name": mid}], "url": canonical}}

@@ -27,4 +27,10 @@ extension/_metadata/
 .omc/
 .agent/
 flow_session_project.json
+
+# Desktop app artifacts
+desktop/node_modules/
+desktop/release/
+
 .venv/
+venv/

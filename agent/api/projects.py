@@ -511,7 +511,11 @@ async def generate_thumbnail(pid: str, body: ThumbnailRequest):
             except aiohttp.ClientError as e:
                 raise HTTPException(502, f"Failed to download image: {e}") from e
         elif gen_result.url.startswith("file://"):
-            src = Path(urlparse(gen_result.url).path)
+            from urllib.parse import unquote
+            raw = gen_result.url[7:]
+            if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
+                raw = raw[1:]
+            src = Path(unquote(raw))
             if not src.is_file():
                 raise HTTPException(502, f"Provider returned missing file: {gen_result.url}")
             shutil.copy2(src, output_path)

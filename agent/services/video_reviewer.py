@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -149,11 +150,15 @@ def _local_media_path(url: str) -> Path | None:
     """
     if not url:
         return None
-    parsed = urlparse(url)
-    if parsed.scheme == "file":
-        p = Path(parsed.path)
+    if url.startswith("file://"):
+        from urllib.parse import unquote
+        raw = url[7:]
+        if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
+            raw = raw[1:]
+        p = Path(unquote(raw))
         return p if p.is_file() else None
-    if not parsed.scheme:
+    parsed = urlparse(url)
+    if not parsed.scheme or len(parsed.scheme) == 1:
         p = Path(url)
         return p if p.is_file() else None
     return None
@@ -312,7 +317,14 @@ def _create_contact_sheets(
         chunk_dir = Path(out_dir) / f"_chunk_{sheet_idx:02d}"
         chunk_dir.mkdir(exist_ok=True)
         for i, frame_path in enumerate(chunk, start=1):
-            os.symlink(frame_path.resolve(), chunk_dir / f"f_{i:04d}.jpg")
+            dest_frame = chunk_dir / f"f_{i:04d}.jpg"
+            try:
+                os.symlink(frame_path.resolve(), dest_frame)
+            except OSError:
+                try:
+                    os.link(frame_path.resolve(), dest_frame)
+                except OSError:
+                    shutil.copyfile(frame_path.resolve(), dest_frame)
         output = Path(out_dir) / f"sheet_{sheet_idx:02d}.jpg"
         # Pick the largest divisor of the chunk size (up to REVIEW_SHEET_COLS) as the
         # column count, so every cell in the tile is filled — zero unfilled cells for any

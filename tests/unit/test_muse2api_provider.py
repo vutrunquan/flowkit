@@ -85,7 +85,7 @@ def provider(tmp_path, gateway, monkeypatch):
 def start_image(tmp_path):
     p = tmp_path / "start.png"
     p.write_bytes(PNG)
-    return "file://" + str(p)
+    return "file://" + str(p.resolve()).replace("\\", "/")
 
 
 async def test_image_is_saved_locally_with_minted_uuid(provider, gateway):

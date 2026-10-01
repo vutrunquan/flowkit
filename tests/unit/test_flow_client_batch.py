@@ -39,9 +39,9 @@ def client(monkeypatch):
     c.responses = {}
     c.calls = []
 
-    async def fake_batch_rpc(rpcid, freq, captcha_action=None, match=None, timeout=300):
+    async def fake_batch_rpc(rpcid, freq, captcha_action=None, match=None, timeout=300, project_id=None, **kwargs):
         c.calls.append({"rpcid": rpcid, "freq": freq,
-                        "captcha": captcha_action, "match": match})
+                        "captcha": captcha_action, "match": match, "project_id": project_id})
         canned = c.responses.get(rpcid, {"data": ""})
         return canned(match) if callable(canned) else canned
 
@@ -116,7 +116,7 @@ class TestGenerateImages:
         attempts = 0
         sleeps = []
 
-        async def fake_payload(rpcid, freq, captcha_action=None, timeout=300):
+        async def fake_payload(rpcid, freq, captcha_action=None, timeout=300, **kwargs):
             nonlocal attempts
             attempts += 1
             if attempts == 1:
@@ -140,7 +140,7 @@ class TestGenerateImages:
         attempts = 0
         sleeps = []
 
-        async def fake_payload(rpcid, freq, captcha_action=None, timeout=300):
+        async def fake_payload(rpcid, freq, captcha_action=None, timeout=300, **kwargs):
             nonlocal attempts
             attempts += 1
             raise fb.RpcError(fb.RPC_GEN_IMAGE, [5])
@@ -162,7 +162,7 @@ class TestGenerateImages:
         async def fake_sleep(_delay):
             return None
 
-        async def fake_payload(rpcid, freq, captcha_action=None, timeout=300):
+        async def fake_payload(rpcid, freq, captcha_action=None, timeout=300, **kwargs):
             item = json.loads(json.loads(freq)[0][0][1])[1][0]
             if item[3] == 100 + 9973:
                 raise fb.RpcError(fb.RPC_GEN_IMAGE, [5])
